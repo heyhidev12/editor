@@ -4,6 +4,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/copy-tinymce.js",
     "prestart": "node scripts/copy-tinymce.js",
     "prebuild": "node scripts/copy-tinymce.js",
     "start": "vite",
@@ -17,6 +18,8 @@
   },
   "dependencies": {
     "@tinymce/tinymce-react": "^6.3.0",
+    "chart.js": "^4.5.1",
+    "dompurify": "^3.3.1",
     "tinymce": "^8.3.2"
   }
 }

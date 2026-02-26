@@ -130,6 +130,24 @@ export async function updateTemplate(id, data) {
 }
 
 /**
+ * Duplicate template by ID
+ */
+export async function duplicateTemplate(id) {
+	return new Promise((resolve, reject) => {
+		setTimeout(() => {
+			const template = templates.find(t => t.id === parseInt(id));
+			if (template) {
+				const { id: _id, createdAt, updatedAt, ...data } = template;
+				const duplicateData = { ...data, name: `Copy of ${data.name}` };
+				createTemplate(duplicateData).then(resolve).catch(reject);
+			} else {
+				reject(new Error('Template not found'));
+			}
+		}, 300);
+	});
+}
+
+/**
  * Delete template
  */
 export async function deleteTemplate(id) {

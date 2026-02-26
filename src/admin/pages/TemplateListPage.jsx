@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { getTemplates, deleteTemplate, TEMPLATE_CATEGORIES } from '../services/templateService';
+import { getTemplates, deleteTemplate, duplicateTemplate, TEMPLATE_CATEGORIES } from '../services/templateService';
 
 /**
  * Template List Page - Show all email templates with actions
  */
-export default function TemplateListPage({ onCreateNew, onEdit }) {
+export default function TemplateListPage({ onCreateNew, onEdit, onDuplicate }) {
 	const [templates, setTemplates] = useState([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [message, setMessage] = useState(null);
@@ -42,6 +42,18 @@ export default function TemplateListPage({ onCreateNew, onEdit }) {
 			showMessage('Template deleted successfully', 'success');
 		} catch (error) {
 			showMessage('Failed to delete template', 'error');
+			console.error(error);
+		}
+	}
+
+	async function handleDuplicate(id) {
+		try {
+			const newTemplate = await duplicateTemplate(id);
+			await loadTemplates();
+			showMessage('Template duplicated successfully', 'success');
+			if (onDuplicate) onDuplicate(newTemplate.id);
+		} catch (error) {
+			showMessage('Failed to duplicate template', 'error');
 			console.error(error);
 		}
 	}
@@ -149,6 +161,13 @@ export default function TemplateListPage({ onCreateNew, onEdit }) {
 												onClick={() => onEdit(template.id)}
 											>
 												✏️ Edit
+											</button>
+											<button
+												className="btn-small btn-duplicate"
+												onClick={() => handleDuplicate(template.id)}
+												title="Duplicate template"
+											>
+												📋 Duplicate
 											</button>
 											<button
 												className="btn-small btn-delete"

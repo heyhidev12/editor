@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import { getTemplate, updateTemplate, createTemplate, TEMPLATE_CATEGORIES } from '../services/templateService';
+import { getEmailEditorConfig } from '../config/emailEditorConfig';
 import VariablesPanel from './VariablesPanel';
 import PreviewModal from './PreviewModal';
 
@@ -23,10 +24,12 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 		fromName: '',
 		fromEmail: '',
 		subject: '',
-		body: ''
+		body: '',
+		customCss: ''
 	});
 
 	const [errors, setErrors] = useState({});
+	const [contentView, setContentView] = useState('editor'); // 'editor' | 'html' | 'css'
 
 	// Load template if editing
 	useEffect(() => {
@@ -48,7 +51,8 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 				fromName: template.fromName,
 				fromEmail: template.fromEmail,
 				subject: template.subject,
-				body: template.body
+				body: template.body,
+				customCss: template.customCss || ''
 			});
 		} catch (error) {
 			showMessage('Failed to load template', 'error');
@@ -122,7 +126,8 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 		}
 	}
 
-	async function handleSave() {
+
+	async function handleSave(andPreview = false) {
 		if (!validateForm()) {
 			showMessage('Please fill in all required fields', 'error');
 			return;
@@ -130,15 +135,26 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 
 		try {
 			setIsSaving(true);
+			// Convert blob URLs (e.g. from charts) to data URLs before save
+			const editor = editorRef.current;
+			if (editor && contentView === 'editor') {
+				await editor.uploadImages();
+			}
+			const bodyToSave = (editor && contentView === 'editor') ? editor.getContent() : formData.body;
+			const dataToSave = { ...formData, body: bodyToSave };
+
 			if (templateId) {
-				await updateTemplate(templateId, formData);
+				await updateTemplate(templateId, dataToSave);
 				showMessage('Template updated successfully!', 'success');
 			} else {
-				await createTemplate(formData);
+				await createTemplate(dataToSave);
 				showMessage('Template created successfully!', 'success');
 			}
 
-			if (onSave) {
+			if (andPreview) {
+				setFormData((prev) => ({ ...prev, body: bodyToSave }));
+				setShowPreview(true);
+			} else if (onSave) {
 				onSave();
 			}
 		} catch (error) {
@@ -289,64 +305,103 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 							</div>
 						</div>
 
-						<div className="tinymce-editor-wrapper">
-							<Editor
-								tinymceScriptSrc="/tinymce/tinymce.min.js"
-								onInit={(evt, editor) => {
-									editorRef.current = editor;
-									setEditorReady(true);
+						{/* View Tabs: Editor | HTML | CSS */}
+						<div className="content-view-tabs">
+							<button
+								type="button"
+								className={`content-view-tab ${contentView === 'editor' ? 'active' : ''}`}
+								onClick={() => setContentView('editor')}
+							>
+								Editor
+							</button>
+							<button
+								type="button"
+								className={`content-view-tab ${contentView === 'html' ? 'active' : ''}`}
+								onClick={() => {
+									const editor = editorRef.current;
+									if (editor && contentView === 'editor') {
+										setFormData((prev) => ({ ...prev, body: editor.getContent() }));
+									}
+									setContentView('html');
 								}}
-								value={formData.body}
-								onEditorChange={handleEditorChange}
-								init={{
-									license_key: 'gpl',
-									base_url: '/tinymce',
-									height: 450,
-									menubar: false,
-									plugins: [
-										'advlist',
-										'autolink',
-										'lists',
-										'link',
-										'image',
-										'charmap',
-										'preview',
-										'anchor',
-										'searchreplace',
-										'visualblocks',
-										'code',
-										'fullscreen',
-										'insertdatetime',
-										'media',
-										'table',
-										'help',
-										'wordcount'
-									],
-									toolbar:
-										'undo redo | blocks | fontfamily fontsize | bold italic underline strikethrough | ' +
-										'forecolor backcolor | alignleft aligncenter alignright alignjustify | ' +
-										'bullist numlist outdent indent | link image table | removeformat | help',
-									font_family_formats:
-										'Arial=arial,helvetica,sans-serif; ' +
-										'Verdana=verdana,sans-serif; ' +
-										'Georgia=georgia,palatino,serif; ' +
-										'Times New Roman=times new roman,times,serif; ' +
-										'Courier New=courier new,courier,monospace; ' +
-										'Tahoma=tahoma,sans-serif; ' +
-										'Trebuchet MS=trebuchet ms,sans-serif',
-									font_size_formats: '12px 14px 16px 18px 20px 24px',
-									content_style: 'body { font-family: Arial, Verdana, Georgia, sans-serif; font-size: 14px; }',
-									placeholder: 'Compose your email template here...',
-									link_default_target: '_blank',
-									link_assume_external_targets: 'https'
-								}}
-							/>
+							>
+								HTML
+							</button>
+							<button
+								type="button"
+								className={`content-view-tab ${contentView === 'css' ? 'active' : ''}`}
+								onClick={() => setContentView('css')}
+							>
+								CSS
+							</button>
 						</div>
-						{errors.body && <span style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{errors.body}</span>}
+
+						<div className="content-view-panel">
+							{contentView === 'editor' && (
+								<div className="tinymce-editor-wrapper">
+									<Editor
+										tinymceScriptSrc="/tinymce/tinymce.min.js"
+										licenseKey="gpl"
+										onInit={(evt, editor) => {
+											editorRef.current = editor;
+											setEditorReady(true);
+										}}
+										value={formData.body}
+										onEditorChange={handleEditorChange}
+										init={getEmailEditorConfig(editorRef, {
+											placeholder: 'Compose your email template here...',
+											height: 450
+										})}
+									/>
+								</div>
+							)}
+
+							{contentView === 'html' && (
+								<div className="code-view-wrapper">
+									<textarea
+										className="code-textarea"
+										value={formData.body}
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												body: e.target.value
+											}))
+										}
+										placeholder="<p>Enter your HTML here...</p>"
+										spellCheck={false}
+									/>
+								</div>
+							)}
+
+							{contentView === 'css' && (
+								<div className="code-view-wrapper">
+									<textarea
+										className="code-textarea"
+										value={formData.customCss}
+										onChange={(e) =>
+											setFormData((prev) => ({
+												...prev,
+												customCss: e.target.value
+											}))
+										}
+										placeholder="/* Custom CSS for email template */
+body { font-family: Arial, sans-serif; }
+p { margin: 0 0 10px 0; }"
+										spellCheck={false}
+									/>
+								</div>
+							)}
+						</div>
+						{errors.body && contentView === 'editor' && (
+							<span style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{errors.body}</span>
+						)}
+						{errors.body && (contentView === 'html' || contentView === 'css') && (
+							<span style={{ color: '#dc3545', fontSize: '12px', marginTop: '4px' }}>{errors.body}</span>
+						)}
 					</div>
 
 					<VariablesPanel
-						editorInstance={editorReady ? editorRef.current : null}
+						editorInstance={contentView === 'editor' && editorReady ? editorRef.current : null}
 						onInsertVariable={handleInsertVariable}
 					/>
 				</div>
@@ -363,14 +418,34 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 				</button>
 				<button
 					className="btn-secondary"
-					onClick={() => setShowPreview(true)}
+					onClick={() => {
+						const editor = editorRef.current;
+						if (editor && contentView === 'editor') {
+							setFormData((prev) => ({ ...prev, body: editor.getContent() }));
+						}
+						setShowPreview(true);
+					}}
 					disabled={isSaving}
 				>
 					👁️ Preview
 				</button>
 				<button
+					className="btn-secondary"
+					onClick={() => handleSave(true)}
+					disabled={isSaving}
+				>
+					{isSaving ? (
+						<>
+							<span className="loading" style={{ display: 'inline-block', marginRight: '8px' }}></span>
+							Saving...
+						</>
+					) : (
+						'💾 Save & Preview'
+					)}
+				</button>
+				<button
 					className="btn-success"
-					onClick={handleSave}
+					onClick={() => handleSave(false)}
 					disabled={isSaving}
 				>
 					{isSaving ? (

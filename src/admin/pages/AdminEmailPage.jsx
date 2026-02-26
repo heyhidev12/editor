@@ -20,6 +20,11 @@ export default function AdminEmailPage() {
 		setView('edit');
 	}
 
+	function handleDuplicate(id) {
+		setEditingTemplateId(id);
+		setView('edit');
+	}
+
 	function handleSave() {
 		setView('list');
 		setEditingTemplateId(null);
@@ -70,6 +75,7 @@ export default function AdminEmailPage() {
 				<TemplateListPage
 					onCreateNew={handleCreateNew}
 					onEdit={handleEdit}
+					onDuplicate={handleDuplicate}
 				/>
 			)}
 

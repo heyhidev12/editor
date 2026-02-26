@@ -165,6 +165,15 @@
 	background-color: #218838;
 }
 
+.btn-duplicate {
+	background-color: #17a2b8;
+	color: white;
+}
+
+.btn-duplicate:hover {
+	background-color: #138496;
+}
+
 .btn-delete {
 	background-color: #dc3545;
 	color: white;
@@ -281,10 +290,73 @@
 	color: #dc3545;
 }
 
+/* Content View Tabs (Editor | HTML | CSS) */
+.content-view-tabs {
+	display: flex;
+	gap: 0;
+	margin-bottom: 0;
+	border-bottom: 1px solid #ddd;
+}
+
+.content-view-tab {
+	padding: 10px 20px;
+	border: 1px solid #ddd;
+	border-bottom: none;
+	border-radius: 4px 4px 0 0;
+	background: #f5f5f5;
+	color: #555;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+	margin-right: 2px;
+}
+
+.content-view-tab:hover {
+	background: #eee;
+	color: #333;
+}
+
+.content-view-tab.active {
+	background: #1976d2;
+	color: white;
+	border-color: #1976d2;
+	margin-bottom: -1px;
+	padding-bottom: 11px;
+}
+
+.content-view-panel {
+	border: 1px solid #ddd;
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+	overflow: hidden;
+}
+
+.code-view-wrapper {
+	min-height: 450px;
+}
+
+.code-textarea {
+	width: 100%;
+	min-height: 450px;
+	padding: 16px;
+	border: none;
+	font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+	font-size: 13px;
+	line-height: 1.5;
+	resize: vertical;
+	background: #fafafa;
+}
+
+.code-textarea:focus {
+	outline: none;
+	background: #fff;
+}
+
 .tinymce-editor-wrapper {
 	min-height: 450px;
-	border: 1px solid #ddd;
-	border-radius: 4px;
+	border: none;
+	border-radius: 0;
 	overflow: hidden;
 }
 
@@ -457,6 +529,17 @@
 	padding: 20px;
 }
 
+/* Korean/CJK: prevent character-level breaking, wrap at word level (Naver Blog style)
+   Use .email-content for user page / final output; .preview-content for admin preview */
+.email-content,
+.email-content *,
+.preview-content,
+.preview-content * {
+	word-break: keep-all;
+	overflow-wrap: normal;
+	white-space: normal;
+}
+
 .preview-content {
 	background: white;
 	padding: 40px;
@@ -498,6 +581,29 @@
 .preview-content table th {
 	border: 1px solid #ddd;
 	padding: 8px;
+}
+
+/* List styling - editor bilan bir xil (disc = solid bullet, nested ham) */
+.preview-content ul,
+.preview-content ul ul,
+.preview-content ul ul ul {
+	margin: 0.5em 0 1em 20px;
+	padding-left: 20px;
+	list-style-type: disc;
+	list-style-position: outside;
+}
+
+.preview-content ol,
+.preview-content ol ol,
+.preview-content ol ol ol {
+	margin: 0.5em 0 1em 20px;
+	padding-left: 20px;
+	list-style-type: decimal;
+	list-style-position: outside;
+}
+
+.preview-content li {
+	margin-bottom: 6px;
 }
 
 .modal-footer {

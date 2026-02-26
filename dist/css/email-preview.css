@@ -1,0 +1,93 @@
+/**
+ * Email Preview CSS
+ * Editor va Preview bir xil ko'rinsin uchun
+ * TinyMCE content_css orqali yuklanadi
+ */
+
+/* Korean/CJK: prevent character-level breaking, wrap at word level (Naver Blog style) */
+body,
+body * {
+	word-break: keep-all;
+	overflow-wrap: normal;
+	white-space: normal;
+}
+
+body {
+	font-family: Arial, Verdana, Georgia, 'Times New Roman', serif;
+	font-size: 14px;
+	line-height: 1.6;
+	color: #333;
+}
+
+/* List styling - editor va preview bir xil (disc = solid bullet) */
+ul,
+ul ul,
+ul ul ul {
+	margin: 0.5em 0 1em 20px;
+	padding-left: 20px;
+	list-style-type: disc;
+	list-style-position: outside;
+}
+
+ol,
+ol ol,
+ol ol ol {
+	margin: 0.5em 0 1em 20px;
+	padding-left: 20px;
+	list-style-type: decimal;
+	list-style-position: outside;
+}
+
+li {
+	margin-bottom: 6px;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+	margin: 1em 0 0.5em 0;
+}
+
+p {
+	margin: 0.5em 0 1em 0;
+}
+
+a {
+	color: #007bff;
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+/* Tables */
+table {
+	margin: 1em 0;
+	border-collapse: collapse;
+}
+
+table td,
+table th {
+	border: 1px solid #ddd;
+	padding: 8px;
+}
+
+/* Images */
+figure.image {
+	display: inline-block;
+	border: 1px solid #ddd;
+	margin: 0 2px 0 1px;
+	background: #f5f2f0;
+}
+
+figure.image img {
+	margin: 8px;
+}
+
+img.align-left {
+	float: left;
+}
+
+img.align-right {
+	float: right;
+}

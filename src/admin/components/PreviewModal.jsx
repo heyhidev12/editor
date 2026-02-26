@@ -1,7 +1,9 @@
 import React from 'react';
+import DOMPurify from 'dompurify';
 
 /**
  * Preview Modal - Shows email template preview with mock data
+ * Sanitizes HTML to prevent XSS (dangerouslySetInnerHTML xavfsiz)
  */
 export default function PreviewModal({ isOpen, onClose, template }) {
 	if (!isOpen) return null;
@@ -69,9 +71,18 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 						<h3 style={{ margin: '0 0 15px 0', fontSize: '14px', fontWeight: '600', color: '#333' }}>
 							Email Body:
 						</h3>
+						{template.customCss && (
+							<style dangerouslySetInnerHTML={{ __html: template.customCss }} />
+						)}
 						<div
 							className="preview-content"
-							dangerouslySetInnerHTML={{ __html: previewContent }}
+							dangerouslySetInnerHTML={{
+								__html: DOMPurify.sanitize(previewContent, {
+									ADD_TAGS: ['figure', 'figcaption'],
+									ADD_ATTR: ['target', 'colspan', 'rowspan'],
+									ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+								})
+							}}
 						/>
 					</div>
 
