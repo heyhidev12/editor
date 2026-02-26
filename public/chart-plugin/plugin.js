@@ -6,6 +6,21 @@
 	'use strict';
 
 	var PluginManager = tinymce.util.Tools.resolve('tinymce.PluginManager');
+	var CHART_W = 450;
+	var CHART_H = 280;
+	var MAX_POINTS = 12;
+	var COLORS = [
+		{ bg: 'rgba(54, 162, 235, 0.7)', border: 'rgb(54, 162, 235)' },
+		{ bg: 'rgba(255, 99, 132, 0.7)', border: 'rgb(255, 99, 132)' },
+		{ bg: 'rgba(255, 206, 86, 0.7)', border: 'rgb(255, 206, 86)' },
+		{ bg: 'rgba(75, 192, 192, 0.7)', border: 'rgb(75, 192, 192)' },
+		{ bg: 'rgba(153, 102, 255, 0.7)', border: 'rgb(153, 102, 255)' },
+		{ bg: 'rgba(255, 159, 64, 0.7)', border: 'rgb(255, 159, 64)' },
+		{ bg: 'rgba(199, 199, 199, 0.7)', border: 'rgb(199, 199, 199)' },
+		{ bg: 'rgba(83, 102, 255, 0.7)', border: 'rgb(83, 102, 255)' },
+		{ bg: 'rgba(255, 99, 255, 0.7)', border: 'rgb(255, 99, 255)' },
+		{ bg: 'rgba(99, 255, 132, 0.7)', border: 'rgb(99, 255, 132)' }
+	];
 
 	function register(editor) {
 		editor.ui.registry.addButton('chart', {
@@ -66,13 +81,13 @@
 					{
 						type: 'textarea',
 						name: 'labels',
-						label: 'Labels (comma-separated)',
+						label: 'Labels (comma-separated, max ' + MAX_POINTS + ')',
 						placeholder: 'e.g. Jan, Feb, Mar, Apr, May'
 					},
 					{
 						type: 'textarea',
 						name: 'values',
-						label: 'Values (comma-separated)',
+						label: 'Values (comma-separated, max ' + MAX_POINTS + ')',
 						placeholder: 'e.g. 10, 20, 15, 25, 30'
 					}
 				]
@@ -99,15 +114,14 @@
 					return;
 				}
 
-				// Align lengths
-				var len = Math.min(labels.length, values.length);
+				var len = Math.min(labels.length, values.length, MAX_POINTS);
 				labels = labels.slice(0, len);
 				values = values.slice(0, len);
 
 				var chartType = ['bar', 'line', 'pie', 'doughnut'].indexOf(data.type) >= 0 ? data.type : 'bar';
-				renderChartToImage(editor, ChartLib, chartType, labels, values, data.title || '').then(function (imgSrc) {
+				renderChartToImage(ChartLib, chartType, labels, values, data.title || '').then(function (imgSrc) {
 					if (imgSrc) {
-						editor.insertContent('<p><img src="' + imgSrc + '" alt="Chart" width="500" height="300" style="max-width:100%;height:auto;" /></p>');
+						editor.insertContent('<p><img src="' + imgSrc + '" alt="Chart" width="' + CHART_W + '" height="' + CHART_H + '" style="max-width:100%;height:auto;" /></p>');
 						api.close();
 					} else {
 						editor.notificationManager.open({
@@ -126,14 +140,25 @@
 		});
 	}
 
-	function renderChartToImage(editor, ChartLib, type, labels, values, title) {
+	function getColors(n) {
+		var bg = [], border = [];
+		for (var i = 0; i < n; i++) {
+			var c = COLORS[i % COLORS.length];
+			bg.push(c.bg);
+			border.push(c.border);
+		}
+		return { bg: bg, border: border };
+	}
+
+	function renderChartToImage(ChartLib, type, labels, values, title) {
 		return new Promise(function (resolve) {
 			var canvas = document.createElement('canvas');
-			canvas.width = 500;
-			canvas.height = 300;
+			canvas.width = CHART_W;
+			canvas.height = CHART_H;
 			canvas.style.cssText = 'position:absolute;left:-9999px;top:0';
 			document.body.appendChild(canvas);
 			var ctx = canvas.getContext('2d');
+			var colors = getColors(values.length);
 
 			var config = {
 				type: type,
@@ -142,28 +167,15 @@
 					datasets: [{
 						label: title || 'Data',
 						data: values,
-						backgroundColor: [
-							'rgba(54, 162, 235, 0.7)',
-							'rgba(255, 99, 132, 0.7)',
-							'rgba(255, 206, 86, 0.7)',
-							'rgba(75, 192, 192, 0.7)',
-							'rgba(153, 102, 255, 0.7)',
-							'rgba(255, 159, 64, 0.7)'
-						],
-						borderColor: [
-							'rgb(54, 162, 235)',
-							'rgb(255, 99, 132)',
-							'rgb(255, 206, 86)',
-							'rgb(75, 192, 192)',
-							'rgb(153, 102, 255)',
-							'rgb(255, 159, 64)'
-						],
+						backgroundColor: colors.bg,
+						borderColor: colors.border,
 						borderWidth: 1
 					}]
 				},
 				options: {
 					responsive: false,
 					animation: false,
+					layout: { padding: 8 },
 					plugins: {
 						legend: { display: type === 'pie' || type === 'doughnut' },
 						title: {
@@ -183,12 +195,10 @@
 
 			try {
 				var chart = new ChartLib(ctx, config);
-				// Chart.js 4 renders async - draw unique pixel so each chart has different base64 (prevents getByData reuse)
 				function capture() {
 					try {
-						// Invisible 1px at corner - makes each chart's base64 unique so TinyMCE getByData won't reuse blob
 						ctx.fillStyle = 'rgba(0,0,0,' + (Math.random() * 0.0001) + ')';
-						ctx.fillRect(499, 299, 1, 1);
+						ctx.fillRect(CHART_W - 1, CHART_H - 1, 1, 1);
 						canvas.toBlob(function (blob) {
 							chart.destroy();
 							if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
@@ -211,10 +221,9 @@
 						resolve(null);
 					}
 				}
-				// Wait for Chart.js to paint (rAF + short delay for async render)
 				requestAnimationFrame(function () {
 					requestAnimationFrame(function () {
-						setTimeout(capture, 100);
+						setTimeout(capture, 50);
 					});
 				});
 			} catch (e) {

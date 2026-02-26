@@ -66,7 +66,7 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 						</div>
 					</div>
 
-					{/* Email Body Preview */}
+					{/* Email Body Preview - same CSS as editor (email-preview.css) for identical bullets/lists */}
 					<div style={{ marginBottom: '20px' }}>
 						<h3 style={{ margin: '0 0 15px 0', fontSize: '14px', fontWeight: '600', color: '#333' }}>
 							Email Body:

@@ -340,8 +340,11 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 							{contentView === 'editor' && (
 								<div className="tinymce-editor-wrapper">
 									<Editor
-										tinymceScriptSrc="/tinymce/tinymce.min.js"
-										licenseKey="gpl"
+										apiKey="1ei9ojn93btcdb2cv2lvo5hgl7n09m02ay2i89rw77w8zyja"
+										tinymceScriptSrc={[
+											'https://cdn.tiny.cloud/1/1ei9ojn93btcdb2cv2lvo5hgl7n09m02ay2i89rw77w8zyja/tinymce/8/tinymce.min.js',
+											'https://cdn.tiny.cloud/1/1ei9ojn93btcdb2cv2lvo5hgl7n09m02ay2i89rw77w8zyja/tinymce/8/plugins.min.js'
+										]}
 										onInit={(evt, editor) => {
 											editorRef.current = editor;
 											setEditorReady(true);

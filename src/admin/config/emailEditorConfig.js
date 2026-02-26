@@ -16,7 +16,6 @@ export function getEmailEditorConfig(editorRef, options = {}) {
 	} = options;
 
 	return {
-		base_url: '/tinymce',
 		height: Math.max(height, 450),
 		menubar: 'edit view insert format table help',
 		external_plugins: {
@@ -38,7 +37,8 @@ export function getEmailEditorConfig(editorRef, options = {}) {
 			'insertdatetime',
 			'table',
 			'help',
-			'wordcount'
+			'wordcount',
+			'powerpaste'
 		],
 		toolbar:
 			'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | ' +
@@ -77,7 +77,11 @@ export function getEmailEditorConfig(editorRef, options = {}) {
 		placeholder,
 		link_default_target: '_blank',
 		link_assume_external_targets: 'https',
-		// Paste: preserve lists, bullets, indentation (Word uchun)
+		// PowerPaste: Word/Excel/HTML paste - cleans and preserves lists, bullets, indentation
+		powerpaste_word_import: 'merge',
+		powerpaste_html_import: 'merge',
+		powerpaste_allow_local_images: true,
+		// Fallback paste options (PowerPaste handles most)
 		paste_as_text: false,
 		paste_merge_formats: false,
 		paste_remove_styles_if_webkit: false,
