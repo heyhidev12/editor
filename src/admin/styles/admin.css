@@ -612,6 +612,49 @@
 	text-align: right;
 }
 
+/* Chart Modal & generic modal-content */
+.modal-content {
+	background: white;
+	border-radius: 8px;
+	max-width: 500px;
+	width: 90%;
+	max-height: 90vh;
+	overflow: auto;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	padding: 24px;
+}
+
+.modal-content h3 {
+	margin: 0 0 20px 0;
+	font-size: 18px;
+}
+
+.modal-actions {
+	display: flex;
+	gap: 10px;
+	justify-content: flex-end;
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid #eee;
+}
+
+/* CKEditor wrapper */
+.ckeditor-wrapper {
+	min-height: 450px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.ckeditor-wrapper .ck-editor__editable {
+	min-height: 400px;
+}
+
+/* CKEditor 5 - fix pasted bullet lists: hide empty nested li */
+.ckeditor-wrapper .ck-content li:empty {
+	display: none !important;
+}
+
 /* Loading & Messages */
 .loading {
 	display: inline-block;

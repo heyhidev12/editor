@@ -1,18 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+import { ClassicEditor } from 'ckeditor5';
+import 'ckeditor5/ckeditor5.css';
 import { Editor } from '@tinymce/tinymce-react';
 import { getTemplate, updateTemplate, createTemplate, TEMPLATE_CATEGORIES } from '../services/templateService';
-import { getEmailEditorConfig } from '../config/emailEditorConfig';
+import { ckEditorPlugins, getCkEditorConfig } from '../config/ckEditorConfig';
+import { getEmailEditorConfig, getEmailEditorConfigFree } from '../config/emailEditorConfig';
+import { cleanEmptyListItems } from '../utils/htmlCleanup';
 import VariablesPanel from './VariablesPanel';
 import PreviewModal from './PreviewModal';
+import ChartInsertModal from './ChartInsertModal';
 
-/**
- * Email Template Editor Component
- * Create and edit email templates with TinyMCE
- */
+/** Welcome Email: CKEditor 5 | Password Reset: TinyMCE Cloud | Order Confirmation: TinyMCE FREE */
+const WELCOME_EMAIL_TEMPLATE_ID = 1;
+const ORDER_CONFIRMATION_TEMPLATE_ID = 3;
+
 export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
+	const useCkEditor = templateId === WELCOME_EMAIL_TEMPLATE_ID;
+	const useTinyMceFree = templateId === ORDER_CONFIRMATION_TEMPLATE_ID;
 	const [isLoading, setIsLoading] = useState(templateId ? true : false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [showPreview, setShowPreview] = useState(false);
+	const [showChartModal, setShowChartModal] = useState(false);
 	const [message, setMessage] = useState(null);
 	const [editorReady, setEditorReady] = useState(false);
 	const editorRef = useRef(null);
@@ -33,6 +42,8 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 
 	// Load template if editing
 	useEffect(() => {
+		setEditorReady(false);
+		editorRef.current = null;
 		if (templateId) {
 			loadTemplate();
 		} else {
@@ -104,10 +115,11 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 		}
 	}
 
-	function handleEditorChange(value) {
+	function handleEditorChange(event, editor) {
+		const data = editor.getData();
 		setFormData((prev) => ({
 			...prev,
-			body: value
+			body: data
 		}));
 		if (errors.body) {
 			setErrors((prev) => ({
@@ -119,13 +131,28 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 
 	function handleInsertVariable(variableName) {
 		const editor = editorRef.current;
-		if (editor) {
-			const variableText = `{${variableName}}`;
+		if (!editor) return;
+		const variableText = `{${variableName}}`;
+		if (useCkEditor) {
+			editor.model.change((writer) => {
+				const insertPosition = editor.model.document.selection.getFirstPosition();
+				const textNode = writer.createText(variableText);
+				editor.model.insertContent(textNode, insertPosition);
+			});
+			editor.editing.view.focus();
+		} else {
 			editor.insertContent(variableText);
 			editor.focus();
 		}
 	}
 
+	function handleInsertChart(dataUrl) {
+		const editor = editorRef.current;
+		if (editor && useCkEditor) {
+			editor.execute('insertImage', { source: [{ src: dataUrl }] });
+			editor.editing.view.focus();
+		}
+	}
 
 	async function handleSave(andPreview = false) {
 		if (!validateForm()) {
@@ -135,12 +162,17 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 
 		try {
 			setIsSaving(true);
-			// Convert blob URLs (e.g. from charts) to data URLs before save
 			const editor = editorRef.current;
+			let bodyToSave = formData.body;
 			if (editor && contentView === 'editor') {
-				await editor.uploadImages();
+				if (useCkEditor) {
+					bodyToSave = editor.getData();
+				} else {
+					await editor.uploadImages();
+					bodyToSave = editor.getContent();
+				}
 			}
-			const bodyToSave = (editor && contentView === 'editor') ? editor.getContent() : formData.body;
+			bodyToSave = cleanEmptyListItems(bodyToSave);
 			const dataToSave = { ...formData, body: bodyToSave };
 
 			if (templateId) {
@@ -173,6 +205,11 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 			</div>
 		);
 	}
+
+	const editorConfig = {
+		...getCkEditorConfig({ placeholder: 'Compose your email template here...' }),
+		plugins: ckEditorPlugins
+	};
 
 	return (
 		<div className="email-editor-container">
@@ -320,7 +357,8 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 								onClick={() => {
 									const editor = editorRef.current;
 									if (editor && contentView === 'editor') {
-										setFormData((prev) => ({ ...prev, body: editor.getContent() }));
+										const body = useCkEditor ? editor.getData() : editor.getContent();
+										setFormData((prev) => ({ ...prev, body }));
 									}
 									setContentView('html');
 								}}
@@ -337,24 +375,65 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 						</div>
 
 						<div className="content-view-panel">
-							{contentView === 'editor' && (
+							{contentView === 'editor' && useCkEditor && (
+								<div className="ckeditor-wrapper">
+									<div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+										<button
+											type="button"
+											className="btn-secondary"
+											style={{ padding: '8px 14px', fontSize: '13px' }}
+											onClick={() => setShowChartModal(true)}
+											title="Insert Chart (Bar, Line, Pie, Doughnut)"
+										>
+											📊 Chart
+										</button>
+									</div>
+									<CKEditor
+										editor={ClassicEditor}
+										config={editorConfig}
+										data={formData.body}
+										onReady={(editor) => {
+											editorRef.current = editor;
+											setEditorReady(true);
+										}}
+										onChange={handleEditorChange}
+									/>
+								</div>
+							)}
+							{contentView === 'editor' && !useCkEditor && (
 								<div className="tinymce-editor-wrapper">
 									<Editor
-										apiKey="1ei9ojn93btcdb2cv2lvo5hgl7n09m02ay2i89rw77w8zyja"
-										tinymceScriptSrc={[
-											'https://cdn.tiny.cloud/1/1ei9ojn93btcdb2cv2lvo5hgl7n09m02ay2i89rw77w8zyja/tinymce/8/tinymce.min.js',
-											'https://cdn.tiny.cloud/1/1ei9ojn93btcdb2cv2lvo5hgl7n09m02ay2i89rw77w8zyja/tinymce/8/plugins.min.js'
-										]}
+										apiKey={useTinyMceFree ? undefined : '1ei9ojn93btcdb2cv2lvo5hgl7n09m02ay2i89rw77w8zyja'}
+										tinymceScriptSrc={
+											useTinyMceFree
+												? '/tinymce/tinymce.min.js'
+												: [
+														'https://cdn.tiny.cloud/1/1ei9ojn93btcdb2cv2lvo5hgl7n09m02ay2i89rw77w8zyja/tinymce/8/tinymce.min.js',
+														'https://cdn.tiny.cloud/1/1ei9ojn93btcdb2cv2lvo5hgl7n09m02ay2i89rw77w8zyja/tinymce/8/plugins.min.js'
+													]
+										}
 										onInit={(evt, editor) => {
 											editorRef.current = editor;
 											setEditorReady(true);
 										}}
 										value={formData.body}
-										onEditorChange={handleEditorChange}
-										init={getEmailEditorConfig(editorRef, {
-											placeholder: 'Compose your email template here...',
-											height: 450
-										})}
+										onEditorChange={(value) => {
+											setFormData((prev) => ({ ...prev, body: value }));
+											if (errors.body) {
+												setErrors((prev) => ({ ...prev, body: '' }));
+											}
+										}}
+										init={
+											useTinyMceFree
+												? getEmailEditorConfigFree(editorRef, {
+														placeholder: 'Compose your email template here...',
+														height: 450
+													})
+												: getEmailEditorConfig(editorRef, {
+														placeholder: 'Compose your email template here...',
+														height: 450
+													})
+										}
 									/>
 								</div>
 							)}
@@ -424,7 +503,8 @@ p { margin: 0 0 10px 0; }"
 					onClick={() => {
 						const editor = editorRef.current;
 						if (editor && contentView === 'editor') {
-							setFormData((prev) => ({ ...prev, body: editor.getContent() }));
+							const body = useCkEditor ? editor.getData() : editor.getContent();
+							setFormData((prev) => ({ ...prev, body }));
 						}
 						setShowPreview(true);
 					}}
@@ -467,6 +547,14 @@ p { margin: 0 0 10px 0; }"
 				onClose={() => setShowPreview(false)}
 				template={formData}
 			/>
+
+			{useCkEditor && (
+				<ChartInsertModal
+					isOpen={showChartModal}
+					onClose={() => setShowChartModal(false)}
+					onInsert={handleInsertChart}
+				/>
+			)}
 		</div>
 	);
 }

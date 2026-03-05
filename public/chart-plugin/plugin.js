@@ -160,6 +160,7 @@
 			var ctx = canvas.getContext('2d');
 			var colors = getColors(values.length);
 
+			var isPieOrDoughnut = type === 'pie' || type === 'doughnut';
 			var config = {
 				type: type,
 				data: {
@@ -177,11 +178,21 @@
 					animation: false,
 					layout: { padding: 8 },
 					plugins: {
-						legend: { display: type === 'pie' || type === 'doughnut' },
+						legend: { display: isPieOrDoughnut },
 						title: {
 							display: !!title,
 							text: title || ''
-						}
+						},
+						datalabels: isPieOrDoughnut ? {
+							display: false,
+							formatter: function (value, ctx) {
+								var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+								var pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+								return value + ' (' + pct + '%)';
+							},
+							color: '#333',
+							font: { size: 11, weight: 'bold' }
+						} : { display: false }
 					},
 					scales: (type === 'bar' || type === 'line') ? {
 						y: { beginAtZero: true }
@@ -189,7 +200,7 @@
 				}
 			};
 
-			if (type === 'pie' || type === 'doughnut') {
+			if (isPieOrDoughnut) {
 				config.options.scales = {};
 			}
 

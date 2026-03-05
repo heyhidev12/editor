@@ -8,6 +8,23 @@
 export const IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 export const IMAGE_MAX_SIZE_MB = 5;
 
+/** TinyMCE FREE (self-hosted) - Order Confirmation uchun, powerpaste va premium yo'q */
+export function getEmailEditorConfigFree(editorRef, options = {}) {
+	const base = getEmailEditorConfig(editorRef, options);
+	return {
+		...base,
+		license_key: 'gpl',
+		plugins: base.plugins.filter((p) => p !== 'powerpaste').concat('paste_prompt'),
+		external_plugins: {
+			...base.external_plugins,
+			paste_prompt: '/paste-prompt-plugin/plugin.js'
+		},
+		powerpaste_word_import: undefined,
+		powerpaste_html_import: undefined,
+		powerpaste_allow_local_images: undefined
+	};
+}
+
 export function getEmailEditorConfig(editorRef, options = {}) {
 	const {
 		placeholder = 'Compose your email template here...',
@@ -19,7 +36,8 @@ export function getEmailEditorConfig(editorRef, options = {}) {
 		height: Math.max(height, 450),
 		menubar: 'edit view insert format table help',
 		external_plugins: {
-			chart: '/chart-plugin/plugin.js'
+			chart: '/chart-plugin/plugin.js',
+			previewSeparator: '/preview-separator-plugin/plugin.js'
 		},
 		plugins: [
 			'advlist',
@@ -37,13 +55,16 @@ export function getEmailEditorConfig(editorRef, options = {}) {
 			'insertdatetime',
 			'table',
 			'help',
+			'media',
 			'wordcount',
+			'preview',
+			'previewSeparator',
 			'powerpaste'
 		],
 		toolbar:
 			'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | ' +
 			'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | ' +
-			'link image chart table | forecolor backcolor removeformat | code fullscreen help',
+			'link image chart media previewSeparator table | forecolor backcolor removeformat | preview code fullscreen help',
 		toolbar_mode: 'sliding',
 		contextmenu: 'link image chart table',
 		// Email-safe fonts
@@ -73,7 +94,11 @@ export function getEmailEditorConfig(editorRef, options = {}) {
 			'li { margin-bottom: 6px; } ' +
 			'figure.image { display: inline-block; border: 1px solid #ddd; margin: 0 2px 0 1px; background: #f5f2f0; } ' +
 			'figure.image img { margin: 8px; } ' +
-			'img.align-left { float: left; } img.align-right { float: right; }',
+			'img.align-left { float: left; } img.align-right { float: right; } ' +
+			'.preview-separator { position: relative; display: flex; align-items: center; justify-content: center; margin: 30px 0; user-select: none; } ' +
+			'.preview-separator-line { position: absolute; top: 50%; left: 0; right: 0; border-top: 1px dashed #bbb; z-index: 1; } ' +
+			'.preview-separator-badge { position: relative; z-index: 2; background: #fff; padding: 4px 16px; border: 1px solid #ddd; border-radius: 20px; color: #666; font-size: 11px; font-weight: 500; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }',
+		allow_comments: true,
 		placeholder,
 		link_default_target: '_blank',
 		link_assume_external_targets: 'https',
@@ -90,7 +115,8 @@ export function getEmailEditorConfig(editorRef, options = {}) {
 		// Ensure list structure (ul, ol, li) is preserved
 		extended_valid_elements:
 			'ul[class|style|type],ol[class|style|type|start],li[class|style|value],' +
-			'span[class|style],p[class|style|align],div[class|style|align]',
+			'span[class|style|contenteditable],p[class|style|align],div[class|style|align|data-mce-bogus|contenteditable],' +
+			'iframe[src|width|height|frameborder|allow|allowfullscreen|style|class|title|loading|referrerpolicy]',
 		// Image: drag & drop + file picker (paste/drop use images_upload_handler)
 		automatic_uploads: true,
 		paste_data_images: true,

@@ -1,5 +1,6 @@
 import React from 'react';
 import DOMPurify from 'dompurify';
+import { cleanEmptyListItems } from '../utils/htmlCleanup';
 
 /**
  * Preview Modal - Shows email template preview with mock data
@@ -9,13 +10,13 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 	if (!isOpen) return null;
 
 	// Mock data for preview
-		const mockData = {
+	const mockData = {
 		username: 'John Doe',
 		email: 'john@example.com',
 		subscription_start_date: 'January 15, 2024',
 		reset_token: 'abc123def456',
 		order_id: '#12345',
-			item_name: 'Standard Plan',
+		item_name: 'Standard Plan',
 		qty: '1',
 		price: '99.99',
 		company_name: 'Acme Corp',
@@ -24,7 +25,8 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 	};
 
 	// Replace variables in content with mock data
-	const previewContent = replaceVariables(template.body, mockData);
+	const bodyCleaned = cleanEmptyListItems(template.body);
+	const previewContent = replaceVariables(bodyCleaned, mockData);
 
 	function replaceVariables(content, data) {
 		let result = content;
@@ -78,8 +80,22 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 							className="preview-content"
 							dangerouslySetInnerHTML={{
 								__html: DOMPurify.sanitize(previewContent, {
-									ADD_TAGS: ['figure', 'figcaption'],
-									ADD_ATTR: ['target', 'colspan', 'rowspan'],
+									ADD_TAGS: ['figure', 'figcaption', 'iframe'],
+									ADD_ATTR: [
+										'target',
+										'colspan',
+										'rowspan',
+										'src',
+										'width',
+										'height',
+										'frameborder',
+										'allow',
+										'allowfullscreen',
+										'style',
+										'title',
+										'loading',
+										'referrerpolicy'
+									],
 									ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
 								})
 							}}

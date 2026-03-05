@@ -9,8 +9,8 @@ let templateId = 1;
 let templates = [
 	{
 		id: 1,
-		name: 'Welcome Email',
-		description: 'Sent to new users when they sign up',
+		name: 'CKEditor 5',
+		description: 'CKEditor 5 editor – Welcome Email',
 		category: 'MARKETING',
 		fromName: 'Company Team',
 		fromEmail: 'welcome@company.com',
@@ -21,8 +21,8 @@ let templates = [
 	},
 	{
 		id: 2,
-		name: 'Password Reset',
-		description: 'Sent when user requests password reset',
+		name: 'TinyMCE Cloud',
+		description: 'TinyMCE Cloud (subscription) – Password Reset',
 		category: 'SYSTEM',
 		fromName: 'Security Team',
 		fromEmail: 'security@company.com',
@@ -33,8 +33,8 @@ let templates = [
 	},
 	{
 		id: 3,
-		name: 'Order Confirmation',
-		description: 'Sent after successful purchase',
+		name: 'TinyMCE FREE',
+		description: 'TinyMCE FREE (self-hosted) – Order Confirmation',
 		category: 'NOTIFICATION',
 		fromName: 'Orders Team',
 		fromEmail: 'orders@company.com',

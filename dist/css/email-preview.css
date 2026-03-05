@@ -19,15 +19,22 @@ body {
 	color: #333;
 }
 
-/* List styling - editor va preview bir xil (disc = solid bullet) */
-ul,
-ul ul,
-ul ul ul {
+/* List styling - editor bilan bir xil: 1-daraja disc, ichki darajalar circle (bo'sh doira) */
+ul {
 	margin: 0.5em 0 1em 20px;
 	padding-left: 20px;
 	list-style-type: disc;
 	list-style-position: outside;
 }
+
+ul ul,
+ul ul ul {
+	margin: 0.5em 0 1em 20px;
+	padding-left: 20px;
+	list-style-type: circle;
+	list-style-position: outside;
+}
+
 
 ol,
 ol ol,
@@ -40,6 +47,22 @@ ol ol ol {
 
 li {
 	margin-bottom: 6px;
+}
+
+/* Preview: li - white-space pre ni normal qilish (TinyMCE inline override) */
+.preview-content li,
+.preview-content li p {
+	margin: 0;
+	padding: 0;
+	white-space: normal !important;
+}
+.preview-content li {
+	margin-bottom: 4px;
+}
+
+/* Hide empty list items (paste qilinganda nested empty bulletlar) */
+li:empty {
+	display: none !important;
 }
 
 /* Headings */
