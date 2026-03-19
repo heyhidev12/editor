@@ -114,6 +114,7 @@ export function getEmailEditorConfig(editorRef, options = {}) {
 		paste_tab_spaces: 4,
 		// Ensure list structure (ul, ol, li) is preserved
 		extended_valid_elements:
+			'img[src|alt|width|height|style|class|data-chart],' +
 			'ul[class|style|type],ol[class|style|type|start],li[class|style|value],' +
 			'span[class|style|contenteditable],p[class|style|align],div[class|style|align|data-mce-bogus|contenteditable],' +
 			'iframe[src|width|height|frameborder|allow|allowfullscreen|style|class|title|loading|referrerpolicy]',

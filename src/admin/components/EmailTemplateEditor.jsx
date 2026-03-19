@@ -146,10 +146,19 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 		}
 	}
 
-	function handleInsertChart(dataUrl) {
+	function handleInsertChart(dataUrl, chartData) {
 		const editor = editorRef.current;
 		if (editor && useCkEditor) {
-			editor.execute('insertImage', { source: [{ src: dataUrl }] });
+			// Insert image with data-chart attribute for animated preview
+			const chartAttr = chartData ? chartData.replace(/"/g, '&quot;') : '';
+			editor.model.change((writer) => {
+				const imageElement = writer.createElement('imageBlock', {
+					src: dataUrl,
+					alt: 'Chart',
+					'data-chart': chartAttr
+				});
+				editor.model.insertContent(imageElement);
+			});
 			editor.editing.view.focus();
 		}
 	}
