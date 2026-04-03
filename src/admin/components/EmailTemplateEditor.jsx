@@ -7,6 +7,7 @@ import { getTemplate, updateTemplate, createTemplate, TEMPLATE_CATEGORIES } from
 import { ckEditorPlugins, getCkEditorConfig } from '../config/ckEditorConfig';
 import { getEmailEditorConfig, getEmailEditorConfigFree } from '../config/emailEditorConfig';
 import { cleanEmptyListItems } from '../utils/htmlCleanup';
+import { sanitizePaywallSeparators } from '../utils/paywallSplitter';
 import VariablesPanel from './VariablesPanel';
 import PreviewModal from './PreviewModal';
 import ChartInsertModal from './ChartInsertModal';
@@ -182,6 +183,7 @@ export default function EmailTemplateEditor({ templateId, onSave, onCancel }) {
 				}
 			}
 			bodyToSave = cleanEmptyListItems(bodyToSave);
+			bodyToSave = sanitizePaywallSeparators(bodyToSave);
 			const dataToSave = { ...formData, body: bodyToSave };
 
 			if (templateId) {

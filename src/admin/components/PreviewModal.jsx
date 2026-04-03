@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { cleanEmptyListItems } from '../utils/htmlCleanup';
+import { splitPaywallContent } from '../utils/paywallSplitter';
 
 const COLORS = [
 	{ bg: 'rgba(54, 162, 235, 0.7)', border: 'rgb(54, 162, 235)' },
@@ -25,92 +26,102 @@ function getColors(n) {
 	return { bg, border };
 }
 
+function sanitizeHtml(html) {
+	return DOMPurify.sanitize(html, {
+		ADD_TAGS: ['figure', 'figcaption', 'iframe'],
+		ADD_ATTR: [
+			'target', 'colspan', 'rowspan', 'src', 'width', 'height',
+			'frameborder', 'allow', 'allowfullscreen', 'style', 'title',
+			'loading', 'referrerpolicy', 'data-chart'
+		],
+		ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+	});
+}
+
 /**
  * Preview Modal - Shows email template preview with mock data
- * Sanitizes HTML to prevent XSS (dangerouslySetInnerHTML xavfsiz)
+ * Sanitizes HTML to prevent XSS
+ * Supports paywall separator: splits free/paid content
  * Renders chart images as live animated Chart.js canvases
  */
 export default function PreviewModal({ isOpen, onClose, template }) {
-	const previewRef = useRef(null);
+	const freeRef = useRef(null);
+	const paidRef = useRef(null);
+	const fullRef = useRef(null);
 	const chartInstancesRef = useRef([]);
+	const [isSubscribed, setIsSubscribed] = useState(true);
 
 	useEffect(() => {
 		if (!isOpen) {
-			// Destroy chart instances on close
 			chartInstancesRef.current.forEach((c) => c.destroy());
 			chartInstancesRef.current = [];
 			return;
 		}
 
-		// Wait for DOM to render, then find chart images
 		const timer = setTimeout(() => {
-			const container = previewRef.current;
-			if (!container) return;
-
 			const ChartLib = window.Chart;
 			if (!ChartLib) return;
 
-			const imgs = container.querySelectorAll('img[data-chart]');
-			imgs.forEach((img) => {
-				try {
-					const chartData = JSON.parse(img.getAttribute('data-chart'));
-					if (!chartData || !chartData.labels || !chartData.values) return;
+			// Animate charts in all visible preview containers
+			[freeRef, paidRef, fullRef].forEach((ref) => {
+				const container = ref.current;
+				if (!container) return;
 
-					const { type, labels, values, title } = chartData;
-					const colors = getColors(values.length);
-					const isPieOrDoughnut = type === 'pie' || type === 'doughnut';
+				const imgs = container.querySelectorAll('img[data-chart]');
+				imgs.forEach((img) => {
+					try {
+						const chartData = JSON.parse(img.getAttribute('data-chart'));
+						if (!chartData || !chartData.labels || !chartData.values) return;
 
-					// Create canvas to replace the image
-					const canvas = document.createElement('canvas');
-					canvas.width = 450;
-					canvas.height = 280;
-					canvas.style.maxWidth = '100%';
-					canvas.style.height = 'auto';
+						const { type, labels, values, title } = chartData;
+						const colors = getColors(values.length);
+						const isPieOrDoughnut = type === 'pie' || type === 'doughnut';
 
-					img.parentNode.replaceChild(canvas, img);
+						const canvas = document.createElement('canvas');
+						canvas.width = 450;
+						canvas.height = 280;
+						canvas.style.maxWidth = '100%';
+						canvas.style.height = 'auto';
 
-					const chart = new ChartLib(canvas.getContext('2d'), {
-						type,
-						data: {
-							labels,
-							datasets: [{
-								label: title || 'Data',
-								data: values,
-								backgroundColor: colors.bg,
-								borderColor: colors.border,
-								borderWidth: 1
-							}]
-						},
-						options: {
-							responsive: false,
-							animation: {
-								duration: 1200,
-								easing: 'easeOutQuart'
+						img.parentNode.replaceChild(canvas, img);
+
+						const chart = new ChartLib(canvas.getContext('2d'), {
+							type,
+							data: {
+								labels,
+								datasets: [{
+									label: title || 'Data',
+									data: values,
+									backgroundColor: colors.bg,
+									borderColor: colors.border,
+									borderWidth: 1
+								}]
 							},
-							layout: { padding: 8 },
-							plugins: {
-								legend: { display: isPieOrDoughnut },
-								title: {
-									display: !!title,
-									text: title || ''
+							options: {
+								responsive: false,
+								animation: { duration: 1200, easing: 'easeOutQuart' },
+								layout: { padding: 8 },
+								plugins: {
+									legend: { display: isPieOrDoughnut },
+									title: { display: !!title, text: title || '' },
+									datalabels: { display: false }
 								},
-								datalabels: { display: false }
-							},
-							scales: (type === 'bar' || type === 'line') ? {
-								y: { beginAtZero: true }
-							} : {}
-						}
-					});
+								scales: (type === 'bar' || type === 'line') ? {
+									y: { beginAtZero: true }
+								} : {}
+							}
+						});
 
-					chartInstancesRef.current.push(chart);
-				} catch (e) {
-					console.error('Preview chart render error:', e);
-				}
+						chartInstancesRef.current.push(chart);
+					} catch (e) {
+						console.error('Preview chart render error:', e);
+					}
+				});
 			});
 		}, 100);
 
 		return () => clearTimeout(timer);
-	}, [isOpen]);
+	}, [isOpen, isSubscribed]);
 
 	if (!isOpen) return null;
 
@@ -129,32 +140,11 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 		current_date: new Date().toLocaleDateString()
 	};
 
-	// Replace variables in content with mock data
 	const bodyCleaned = cleanEmptyListItems(template.body);
 	const previewContent = replaceVariables(bodyCleaned, mockData);
 
-	// Split content at preview separator (data-preview-separator or <!--preview-separator-->)
-	const separatorRegex = /<div[^>]*data-preview-separator[^>]*>[\s\S]*?<\/div>|<!--preview-separator-->/i;
-	const hasSeparator = separatorRegex.test(previewContent);
-	let freeContent = previewContent;
-	let paidContent = '';
-	if (hasSeparator) {
-		const parts = previewContent.split(separatorRegex);
-		freeContent = parts[0] || '';
-		paidContent = parts.slice(1).join('');
-	}
-
-	function sanitizeHtml(html) {
-		return DOMPurify.sanitize(html, {
-			ADD_TAGS: ['figure', 'figcaption', 'iframe'],
-			ADD_ATTR: [
-				'target', 'colspan', 'rowspan', 'src', 'width', 'height',
-				'frameborder', 'allow', 'allowfullscreen', 'style', 'title',
-				'loading', 'referrerpolicy', 'data-chart'
-			],
-			ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
-		});
-	}
+	// DOM-based paywall split (handles HTML integrity, images, embeds, multilingual)
+	const { freeContent, paidContent, hasSeparator } = splitPaywallContent(previewContent);
 
 	function replaceVariables(content, data) {
 		let result = content;
@@ -196,7 +186,61 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 						</div>
 					</div>
 
-					{/* Email Body Preview - same CSS as editor (email-preview.css) for identical bullets/lists */}
+					{/* Subscription toggle — only show when separator exists */}
+					{hasSeparator && (
+						<div style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: '12px',
+							marginBottom: '16px',
+							padding: '10px 16px',
+							background: '#f8f9fa',
+							borderRadius: '8px',
+							border: '1px solid #e9ecef'
+						}}>
+							<span style={{ fontSize: '13px', fontWeight: 600, color: '#333' }}>
+								Preview as:
+							</span>
+							<button
+								type="button"
+								onClick={() => setIsSubscribed(false)}
+								style={{
+									padding: '5px 14px',
+									borderRadius: '6px',
+									border: '1px solid',
+									borderColor: !isSubscribed ? '#28a745' : '#dee2e6',
+									background: !isSubscribed ? '#28a745' : '#fff',
+									color: !isSubscribed ? '#fff' : '#666',
+									fontSize: '12px',
+									fontWeight: 600,
+									cursor: 'pointer',
+									transition: 'all 0.15s'
+								}}
+							>
+								Free User
+							</button>
+							<button
+								type="button"
+								onClick={() => setIsSubscribed(true)}
+								style={{
+									padding: '5px 14px',
+									borderRadius: '6px',
+									border: '1px solid',
+									borderColor: isSubscribed ? '#007bff' : '#dee2e6',
+									background: isSubscribed ? '#007bff' : '#fff',
+									color: isSubscribed ? '#fff' : '#666',
+									fontSize: '12px',
+									fontWeight: 600,
+									cursor: 'pointer',
+									transition: 'all 0.15s'
+								}}
+							>
+								Subscribed User
+							</button>
+						</div>
+					)}
+
+					{/* Email Body Preview */}
 					<div style={{ marginBottom: '20px' }}>
 						<h3 style={{ margin: '0 0 15px 0', fontSize: '14px', fontWeight: '600', color: '#333' }}>
 							Email Body:
@@ -207,12 +251,11 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 
 						{hasSeparator ? (
 							<>
-								{/* FREE content section */}
+								{/* FREE content — always visible */}
 								<div style={{
 									border: '2px solid #28a745',
 									borderRadius: '8px',
 									padding: '16px',
-									marginBottom: '0',
 									position: 'relative'
 								}}>
 									<div style={{
@@ -230,7 +273,7 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 										FREE PREVIEW
 									</div>
 									<div
-										ref={previewRef}
+										ref={freeRef}
 										className="preview-content"
 										dangerouslySetInnerHTML={{
 											__html: sanitizeHtml(freeContent)
@@ -270,39 +313,79 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 									</div>
 								</div>
 
-								{/* PAID content section */}
-								<div style={{
-									border: '2px solid #ffc107',
-									borderRadius: '8px',
-									padding: '16px',
-									position: 'relative',
-									background: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,193,7,0.03) 10px, rgba(255,193,7,0.03) 20px)'
-								}}>
+								{/* PAID content — visible only for subscribed users */}
+								{isSubscribed ? (
 									<div style={{
-										position: 'absolute',
-										top: '-10px',
-										left: '16px',
-										background: '#ffc107',
-										color: '#333',
-										padding: '2px 12px',
-										borderRadius: '10px',
-										fontSize: '11px',
-										fontWeight: '600',
-										letterSpacing: '0.5px'
+										border: '2px solid #007bff',
+										borderRadius: '8px',
+										padding: '16px',
+										position: 'relative'
 									}}>
-										PAID CONTENT
+										<div style={{
+											position: 'absolute',
+											top: '-10px',
+											left: '16px',
+											background: '#007bff',
+											color: '#fff',
+											padding: '2px 12px',
+											borderRadius: '10px',
+											fontSize: '11px',
+											fontWeight: '600',
+											letterSpacing: '0.5px'
+										}}>
+											PAID CONTENT
+										</div>
+										<div
+											ref={paidRef}
+											className="preview-content"
+											dangerouslySetInnerHTML={{
+												__html: sanitizeHtml(paidContent)
+											}}
+										/>
 									</div>
-									<div
-										className="preview-content"
-										dangerouslySetInnerHTML={{
-											__html: sanitizeHtml(paidContent)
-										}}
-									/>
-								</div>
+								) : (
+									<div style={{
+										border: '2px dashed #dee2e6',
+										borderRadius: '8px',
+										padding: '32px 16px',
+										position: 'relative',
+										textAlign: 'center',
+										background: '#f8f9fa'
+									}}>
+										<div style={{
+											position: 'absolute',
+											top: '-10px',
+											left: '16px',
+											background: '#6c757d',
+											color: '#fff',
+											padding: '2px 12px',
+											borderRadius: '10px',
+											fontSize: '11px',
+											fontWeight: '600',
+											letterSpacing: '0.5px'
+										}}>
+											PAID CONTENT
+										</div>
+										<div style={{ color: '#999', fontSize: '14px', marginBottom: '8px' }}>
+											This content is only visible to subscribed users.
+										</div>
+										<div style={{
+											display: 'inline-block',
+											padding: '6px 20px',
+											background: '#ffc107',
+											color: '#333',
+											borderRadius: '6px',
+											fontSize: '12px',
+											fontWeight: 600
+										}}>
+											Subscribe to unlock
+										</div>
+									</div>
+								)}
 							</>
 						) : (
 							<div
-								ref={previewRef}
+								ref={fullRef}
 								className="preview-content"
 								dangerouslySetInnerHTML={{
 									__html: sanitizeHtml(previewContent)
