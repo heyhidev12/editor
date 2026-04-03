@@ -133,6 +133,29 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 	const bodyCleaned = cleanEmptyListItems(template.body);
 	const previewContent = replaceVariables(bodyCleaned, mockData);
 
+	// Split content at preview separator (data-preview-separator or <!--preview-separator-->)
+	const separatorRegex = /<div[^>]*data-preview-separator[^>]*>[\s\S]*?<\/div>|<!--preview-separator-->/i;
+	const hasSeparator = separatorRegex.test(previewContent);
+	let freeContent = previewContent;
+	let paidContent = '';
+	if (hasSeparator) {
+		const parts = previewContent.split(separatorRegex);
+		freeContent = parts[0] || '';
+		paidContent = parts.slice(1).join('');
+	}
+
+	function sanitizeHtml(html) {
+		return DOMPurify.sanitize(html, {
+			ADD_TAGS: ['figure', 'figcaption', 'iframe'],
+			ADD_ATTR: [
+				'target', 'colspan', 'rowspan', 'src', 'width', 'height',
+				'frameborder', 'allow', 'allowfullscreen', 'style', 'title',
+				'loading', 'referrerpolicy', 'data-chart'
+			],
+			ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+		});
+	}
+
 	function replaceVariables(content, data) {
 		let result = content;
 		Object.entries(data).forEach(([key, value]) => {
@@ -181,32 +204,111 @@ export default function PreviewModal({ isOpen, onClose, template }) {
 						{template.customCss && (
 							<style dangerouslySetInnerHTML={{ __html: template.customCss }} />
 						)}
-						<div
-							ref={previewRef}
-							className="preview-content"
-							dangerouslySetInnerHTML={{
-								__html: DOMPurify.sanitize(previewContent, {
-									ADD_TAGS: ['figure', 'figcaption', 'iframe'],
-									ADD_ATTR: [
-										'target',
-										'colspan',
-										'rowspan',
-										'src',
-										'width',
-										'height',
-										'frameborder',
-										'allow',
-										'allowfullscreen',
-										'style',
-										'title',
-										'loading',
-										'referrerpolicy',
-										'data-chart'
-									],
-									ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
-								})
-							}}
-						/>
+
+						{hasSeparator ? (
+							<>
+								{/* FREE content section */}
+								<div style={{
+									border: '2px solid #28a745',
+									borderRadius: '8px',
+									padding: '16px',
+									marginBottom: '0',
+									position: 'relative'
+								}}>
+									<div style={{
+										position: 'absolute',
+										top: '-10px',
+										left: '16px',
+										background: '#28a745',
+										color: '#fff',
+										padding: '2px 12px',
+										borderRadius: '10px',
+										fontSize: '11px',
+										fontWeight: '600',
+										letterSpacing: '0.5px'
+									}}>
+										FREE PREVIEW
+									</div>
+									<div
+										ref={previewRef}
+										className="preview-content"
+										dangerouslySetInnerHTML={{
+											__html: sanitizeHtml(freeContent)
+										}}
+									/>
+								</div>
+
+								{/* Separator visual */}
+								<div style={{
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									margin: '24px 0',
+									position: 'relative'
+								}}>
+									<div style={{
+										position: 'absolute',
+										top: '50%',
+										left: 0,
+										right: 0,
+										borderTop: '2px dashed #bbb',
+										zIndex: 1
+									}} />
+									<div style={{
+										position: 'relative',
+										zIndex: 2,
+										background: '#fff',
+										padding: '4px 16px',
+										border: '1px solid #ddd',
+										borderRadius: '20px',
+										color: '#666',
+										fontSize: '11px',
+										fontWeight: 500,
+										boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+									}}>
+										&mdash; Preview Separator
+									</div>
+								</div>
+
+								{/* PAID content section */}
+								<div style={{
+									border: '2px solid #ffc107',
+									borderRadius: '8px',
+									padding: '16px',
+									position: 'relative',
+									background: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,193,7,0.03) 10px, rgba(255,193,7,0.03) 20px)'
+								}}>
+									<div style={{
+										position: 'absolute',
+										top: '-10px',
+										left: '16px',
+										background: '#ffc107',
+										color: '#333',
+										padding: '2px 12px',
+										borderRadius: '10px',
+										fontSize: '11px',
+										fontWeight: '600',
+										letterSpacing: '0.5px'
+									}}>
+										PAID CONTENT
+									</div>
+									<div
+										className="preview-content"
+										dangerouslySetInnerHTML={{
+											__html: sanitizeHtml(paidContent)
+										}}
+									/>
+								</div>
+							</>
+						) : (
+							<div
+								ref={previewRef}
+								className="preview-content"
+								dangerouslySetInnerHTML={{
+									__html: sanitizeHtml(previewContent)
+								}}
+							/>
+						)}
 					</div>
 
 					{/* Mock Data Info */}
